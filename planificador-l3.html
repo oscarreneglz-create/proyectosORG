@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L3 Operations Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  :root {
+    --purple-50:#EEEDFE;--purple-100:#CECBF6;--purple-200:#AFA9EC;--purple-400:#7F77DD;
+    --purple-600:#534AB7;--purple-800:#3C3489;--purple-900:#26215C;
+    --teal-50:#E1F5EE;--teal-600:#0F6E56;
+    --amber-50:#FAEEDA;--amber-400:#BA7517;--amber-600:#854F0B;
+    --green-50:#EAF3DE;--green-400:#639922;--green-600:#3B6D11;
+    --red-50:#FCEBEB;--red-400:#E24B4A;--red-600:#A32D2D;
+    --gray-50:#F1EFE8;--gray-100:#D3D1C7;--gray-200:#B4B2A9;--gray-400:#888780;
+    --bg:#F4F3FC;--surface:#FFFFFF;--border:#E4E2F2;
+    --text:#1A1835;--text-2:#4A4870;--text-3:#888780;
+    --radius-md:10px;--radius-lg:14px;--radius-xl:20px;
+    --shadow:0 1px 3px rgba(26,24,53,0.08),0 1px 2px rgba(26,24,53,0.04);
+    --shadow-lg:0 4px 20px rgba(26,24,53,0.13);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;}
+  /* Layout */
+  .app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+  .sidebar{background:var(--purple-900);padding:1.25rem 0.875rem;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+  .sidebar-logo{display:flex;align-items:center;gap:10px;padding:0.5rem 0.75rem;margin-bottom:1.25rem;}
+  .sidebar-logo-icon{width:32px;height:32px;border-radius:9px;background:var(--purple-600);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .sidebar-logo-text{font-size:13px;font-weight:700;color:#fff;letter-spacing:-0.02em;}
+  .sidebar-logo-sub{font-size:10px;color:var(--purple-200);}
+  .nav-section{font-size:10px;font-weight:600;letter-spacing:0.09em;color:var(--purple-400);padding:10px 12px 4px;text-transform:uppercase;margin-top:6px;}
+  .nav-item{display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:8px;color:var(--purple-200);font-size:13px;cursor:pointer;transition:all 0.12s;}
+  .nav-item:hover{background:rgba(255,255,255,0.08);color:#fff;}
+  .nav-item.active{background:rgba(255,255,255,0.15);color:#fff;font-weight:500;}
+  .nav-item i{font-size:17px;flex-shrink:0;}
+  .main{display:flex;flex-direction:column;min-height:100vh;overflow:hidden;}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0.7rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-shrink:0;position:sticky;top:0;z-index:10;}
+  .topbar-title{font-size:15px;font-weight:600;color:var(--text);}
+  .topbar-sub{font-size:11px;color:var(--text-3);}
+  .content{padding:1.25rem 1.5rem;overflow-y:auto;flex:1;}
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(26,24,53,0.52);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;}
+  .modal{background:var(--surface);border-radius:var(--radius-xl);padding:1.75rem;width:100%;max-width:480px;box-shadow:var(--shadow-lg);max-height:92vh;overflow-y:auto;}
+  .modal-sm{max-width:370px;}
+  .modal-title{font-size:17px;font-weight:600;color:var(--text);margin-bottom:0.2rem;}
+  .modal-sub{font-size:12px;color:var(--text-3);margin-bottom:1.25rem;}
+  /* Forms */
+  label{font-size:11px;font-weight:600;color:var(--text-2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.04em;}
+  input[type=text],input[type=number],input[type=date],input[type=datetime-local],select,textarea{
+    width:100%;padding:7px 11px;border:1px solid var(--border);border-radius:var(--radius-md);
+    font-size:13px;background:var(--surface);color:var(--text);outline:none;transition:border 0.15s;font-family:inherit;}
+  input:focus,select:focus,textarea:focus{border-color:var(--purple-400);box-shadow:0 0 0 3px var(--purple-50);}
+  .field{margin-bottom:0.875rem;}
+  .col2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:5px;padding:7px 15px;border-radius:var(--radius-md);font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all 0.13s;}
+  .btn-primary{background:var(--purple-900);color:#fff;}
+  .btn-primary:hover{background:var(--purple-800);}
+  .btn-secondary{background:var(--surface);color:var(--text);border-color:var(--border);}
+  .btn-secondary:hover{background:var(--gray-50);}
+  .btn-sm{padding:5px 10px;font-size:12px;}
+  /* Badge */
+  .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:500;}
+  /* Stat strip */
+  .stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.1rem;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px 14px;box-shadow:var(--shadow);}
+  .stat-num{font-size:24px;font-weight:700;color:var(--text);line-height:1;}
+  .stat-label{font-size:11px;color:var(--text-3);margin-top:3px;}
+  .stat-sub{font-size:11px;margin-top:2px;font-weight:500;}
+  /* Capacity mini row */
+  .cap-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:1.1rem;}
+  .cap-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px 12px;box-shadow:var(--shadow);}
+  .cap-name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cap-role{font-size:10px;color:var(--text-3);margin-bottom:6px;}
+  .cap-track{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;margin-bottom:5px;}
+  .cap-fill{height:100%;border-radius:3px;transition:width 0.4s;}
+  .cap-meta{display:flex;justify-content:space-between;align-items:center;}
+  .cap-hours{font-size:11px;font-weight:600;}
+  .cap-status{font-size:10px;}
+  /* Cap task list */
+  .cap-tasks{margin-top:8px;border-top:1px solid var(--border);padding-top:7px;display:flex;flex-direction:column;gap:3px;}
+  .cap-task-row{display:flex;align-items:center;gap:5px;font-size:10px;}
+  .cap-task-type{flex-shrink:0;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;min-width:26px;text-align:center;}
+  .cap-task-name{flex:1;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .cap-task-hours{flex-shrink:0;color:var(--text-3);font-weight:600;}
+  .cap-task-status{flex-shrink:0;width:14px;height:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+  /* Kanban toolbar */
+  .kb-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:0.9rem;}
+  .filter-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);transition:all 0.12s;user-select:none;}
+  .filter-chip.on{background:var(--purple-900);color:#fff;border-color:var(--purple-900);}
+  select.kb-select{font-size:12px;padding:5px 28px 5px 9px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;width:auto;}
+  /* Kanban board */
+  .kb-board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .kol{background:var(--gray-50);border:1px solid var(--border);border-radius:var(--radius-lg);padding:10px;min-height:280px;display:flex;flex-direction:column;}
+  .kol-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .kol-title{font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:0.07em;}
+  .kol-count{background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:10px;padding:1px 6px;color:var(--text-3);}
+  .kol-body{flex:1;display:flex;flex-direction:column;gap:7px;min-height:40px;}
+  .kol-body.drag-over{outline:2px dashed var(--purple-400);border-radius:8px;background:var(--purple-50);}
+  /* Task card */
+  .task-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:9px 10px;cursor:grab;box-shadow:var(--shadow);transition:box-shadow 0.13s,transform 0.13s;}
+  .task-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);}
+  .task-card.dragging{opacity:0.35;transform:scale(0.97);}
+  .task-head{display:flex;align-items:flex-start;gap:7px;margin-bottom:5px;}
+  .task-name{font-size:12px;font-weight:500;color:var(--text);flex:1;line-height:1.35;cursor:text;}
+  .task-name[contenteditable]:focus{outline:1px solid var(--purple-400);border-radius:3px;padding:0 2px;}
+  .task-footer{display:flex;align-items:center;justify-content:space-between;margin-top:7px;gap:4px;}
+  .avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;}
+  .task-time-inp{width:46px;font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;text-align:center;color:var(--text-2);}
+  .icon-btn{background:none;border:none;cursor:pointer;padding:3px;border-radius:4px;color:var(--text-3);font-size:14px;line-height:1;transition:color 0.12s;}
+  .icon-btn:hover{color:var(--text);}
+  .icon-btn.del:hover{color:var(--red-400);}
+  .sem-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;margin-top:3px;}
+  /* CR lifecycle */
+  .cr-section{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);}
+  .cr-phases{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;}
+  .cr-phase{font-size:9px;padding:2px 5px;border-radius:4px;background:var(--gray-50);border:1px solid var(--border);color:var(--text-3);cursor:pointer;transition:all 0.12s;}
+  .cr-phase.active{background:var(--purple-50);color:var(--purple-800);border-color:var(--purple-200);}
+  /* CR datetime inline */
+  .cr-datetime{display:flex;align-items:center;gap:5px;margin-top:4px;}
+  .cr-datetime-label{font-size:10px;color:var(--text-3);flex-shrink:0;}
+  .cr-datetime-inp{font-size:10px;padding:2px 6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text-2);cursor:pointer;flex:1;min-width:0;}
+  .cr-datetime-inp:focus{border-color:var(--purple-400);outline:none;box-shadow:0 0 0 2px var(--purple-50);}
+  /* Add task */
+  .add-task-btn{width:100%;margin-top:6px;padding:7px;border-radius:var(--radius-md);cursor:pointer;font-size:11px;color:var(--text-3);border:1px dashed var(--border);background:none;text-align:left;display:flex;align-items:center;gap:5px;transition:all 0.12s;}
+  .add-task-btn:hover{background:var(--surface);color:var(--text);border-color:var(--purple-200);}
+  /* Empty */
+  .empty{text-align:center;padding:1.5rem 0.5rem;color:var(--text-3);font-size:12px;}
+  /* Attendance */
+  .att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:1.25rem;}
+  .att-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:12px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);}
+  .att-toggle{width:34px;height:19px;border-radius:10px;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;}
+  .att-toggle::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+  .att-toggle.on{background:var(--purple-600);}
+  .att-toggle.on::after{left:17px;}
+  .att-toggle.off{background:var(--gray-200);}
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+  .tab{padding:7px 13px;font-size:13px;cursor:pointer;color:var(--text-3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.13s;}
+  .tab.active{color:var(--purple-800);border-bottom-color:var(--purple-600);font-weight:500;}
+  /* AI */
+  .ai-panel{background:var(--purple-50);border:1px solid var(--purple-100);border-radius:var(--radius-lg);padding:1.1rem;margin-bottom:1rem;}
+  .ai-title{font-size:13px;font-weight:600;color:var(--purple-800);margin-bottom:0.2rem;display:flex;align-items:center;gap:6px;}
+  .ai-body{font-size:12px;color:var(--text-2);}
+  .ai-output{background:var(--surface);border:1px solid var(--purple-100);border-radius:var(--radius-md);padding:1rem;margin-top:0.75rem;font-size:12px;color:var(--text);line-height:1.7;white-space:pre-wrap;font-family:monospace;}
+  .handover-box{background:var(--gray-50);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.1rem;font-size:12px;line-height:1.85;color:var(--text);white-space:pre-wrap;font-family:monospace;}
+  .progress-bar-wrap{background:var(--gray-100);border-radius:4px;height:7px;overflow:hidden;}
+  .progress-bar{height:100%;border-radius:4px;background:var(--purple-400);animation:prog 1.4s ease-out forwards;}
+  @keyframes prog{from{width:0}to{width:var(--pw)}}
+  /* Toast */
+  .toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--purple-900);color:#fff;padding:9px 15px;border-radius:var(--radius-md);font-size:13px;box-shadow:var(--shadow-lg);z-index:999;display:flex;align-items:center;gap:7px;animation:slideUp 0.25s ease;}
+  @keyframes slideUp{from{transform:translateY(16px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  /* Misc */
+  .section-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:7px;}
+  select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;padding-right:26px;}
+  input[type=checkbox]{width:13px;height:13px;accent-color:var(--purple-600);cursor:pointer;}
+  textarea{resize:vertical;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const{useState,useEffect,useRef}=React;
+const h=React.createElement;
+
+/* ── DATA ── */
+const DEFAULT_ENGINEERS=[
+  {id:'kz',name:'Katia Zambrano',role:'L3 Junio',initials:'KZ',color:'#EEEDFE',tc:'#3C3489',active:true},
+  {id:'ml',name:'Marco Lara',role:'L3',initials:'ML',color:'#E1F5EE',tc:'#085041',active:true},
+  {id:'yl',name:'Yoshi Luna',role:'L3',initials:'YL',color:'#FAECE7',tc:'#993C1D',active:true},
+  {id:'i4',name:'Ing 4',role:'L3',initials:'I4',color:'#FAEEDA',tc:'#633806',active:true},
+  {id:'i5',name:'Ing 5',role:'L2',initials:'I5',color:'#E6F1FB',tc:'#185FA5',active:false},
+  {id:'i6',name:'Ing 6',role:'L2',initials:'I6',color:'#FBEAF0',tc:'#72243E',active:false},
+];
+const CR_PHASES=['Petición','GZ solicitado','CR creado','Aprobaciones','Scheduled','Implementando','Cerrado'];
+const REPETITIVE_CATALOG=[
+  {name:'Reporte de incidentes diario',time:30},
+  {name:'Sanity de ambientes',time:60},
+  {name:'Comunicado jobs de parches SF',time:60},
+  {name:'Reporte EERs',time:30},
+  {name:'Reporte vencimiento usuarios ACI',time:60},
+  {name:'Revisar ctask de parches',time:60},
+  {name:'Actualizar roadmap productivo',time:30},
+  {name:'Reporte llaves y certificados',time:30},
+];
+const TYPE_META={
+  CR:{bg:'#EEEDFE',tc:'#3C3489'},
+  PL:{bg:'#E1F5EE',tc:'#085041'},
+  R:{bg:'#FAEEDA',tc:'#633806'},
+  S:{bg:'#EAF3DE',tc:'#27500A'},
+  INC:{bg:'#FCEBEB',tc:'#791F1F'},
+};
+const TYPE_ORDER=['INC','R','S','CR','PL'];
+const STATUS_INITIAL={pending:'P',inprogress:'E',paused:'Pa',done:'✓'};
+const STATUS_COLORS={
+  pending:{bg:'#F1EFE8',tc:'#888780'},
+  inprogress:{bg:'#EEEDFE',tc:'#3C3489'},
+  paused:{bg:'#FAEEDA',tc:'#633806'},
+  done:{bg:'#EAF3DE',tc:'#27500A'},
+};
+let _nid=20;const uid=()=>_nid++;
+
+function toDatetimeLocal(str){
+  if(!str)return'';
+  if(str.includes('T'))return str.substring(0,16);
+  return str+'T09:00';
+}
+function formatDatetime(str){
+  if(!str)return'';
+  try{
+    const d=new Date(str);
+    return d.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  }catch{return str;}
+}
+
+function buildInitialTasks(engineers){
+  const active=engineers.filter(e=>e.active);
+  const tasks=[];
+  REPETITIVE_CATALOG.forEach((cat,i)=>{
+    const eng=active[i%active.length];
+    tasks.push({id:uid(),type:'R',name:`R - ${cat.name}`,eng:eng?eng.id:'kz',time:cat.time,status:'pending',crPhase:null,crDatetime:null});
+  });
+  tasks.push({id:uid(),type:'CR',name:'CR - Liberación fix Java y Oraclent',eng:'yl',time:90,status:'inprogress',crPhase:'Aprobaciones',crDatetime:'2025-06-28T22:00'});
+  tasks.push({id:uid(),type:'CR',name:'CR - Fix INC00421',eng:'i4',time:60,status:'pending',crPhase:'CR creado',crDatetime:'2025-07-02T18:30'});
+  tasks.push({id:uid(),type:'PL',name:'PL - Migración base de datos productiva',eng:'kz',time:120,status:'pending',crPhase:null,crDatetime:null});
+  tasks.push({id:uid(),type:'PL',name:'PL - Sprint: módulo de monitoreo',eng:'ml',time:90,status:'inprogress',crPhase:null,crDatetime:null});
+  tasks.push({id:uid(),type:'S',name:'S - Ticket soporte: timeout en API',eng:'i5',time:30,status:'pending',crPhase:null,crDatetime:null});
+  tasks.push({id:uid(),type:'INC',name:'INC - Caída servicio crítico P1',eng:'yl',time:30,status:'inprogress',crPhase:null,crDatetime:null});
+  return tasks;
+}
+
+/* ── HELPERS ── */
+function getCap(tasks,engineers){
+  const m={};engineers.forEach(e=>{m[e.id]=0;});
+  tasks.forEach(t=>{if(t.status!=='done')m[t.eng]=(m[t.eng]||0)+t.time;});
+  return m;
+}
+function capColor(mins){const h=mins/60;return h<=6?'#639922':h<=8?'#BA7517':'#E24B4A';}
+function capLabel(mins){const h=mins/60;return h<=6?'Holgura':h<=8?'Óptima':'Sobrecarga';}
+function getCrSem(t){
+  if(!t.crPhase)return null;
+  if(t.crPhase==='Cerrado')return{color:'#378ADD',label:'Cerrado'};
+  if(t.crPhase==='Scheduled'||t.crPhase==='Implementando')return{color:'#639922',label:'Scheduled'};
+  if(t.status==='inprogress')return{color:'#E24B4A',label:'Sin Scheduled'};
+  return{color:'#BA7517',label:'Pendiente'};
+}
+function engById(engineers,id){return engineers.find(e=>e.id===id)||engineers[0]||{name:'?',initials:'?',color:'#eee',tc:'#333'};}
+function rotateR(tasks,engineers){
+  const active=engineers.filter(e=>e.active);
+  if(!active.length)return tasks;
+  let i=0;
+  return tasks.map(t=>{if(t.type!=='R')return t;const e=active[i++%active.length];return{...t,eng:e.id};});
+}
+function assignLeast(tasks,engineers,nt){
+  const active=engineers.filter(e=>e.active);
+  if(!active.length)return nt;
+  const cap=getCap(tasks,engineers);
+  const s=[...active].sort((a,b)=>(cap[a.id]||0)-(cap[b.id]||0));
+  return{...nt,eng:s[0].id};
+}
+
+/* ── AVATAR ── */
+function Avatar({eng,size=22}){
+  return h('div',{className:'avatar',style:{width:size,height:size,background:eng.color,color:eng.tc,fontSize:size*0.38}},eng.initials);
+}
+
+/* ── TOAST ── */
+function Toast({msg,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,2600);return()=>clearTimeout(t);},[]);
+  return h('div',{className:'toast'},h('i',{className:'ti ti-check',style:{fontSize:15}}),msg);
+}
+
+/* ── TASK CARD ── */
+function TaskCard({task,engineers,onUpdate,onDelete,canDelete}){
+  const eng=engById(engineers,task.eng);
+  const tm=TYPE_META[task.type]||TYPE_META.S;
+  const sem=task.type==='CR'?getCrSem(task):null;
+  const dragRef=useRef();
+  const [editingDate,setEditingDate]=useState(false);
+
+  return h('div',{
+    className:'task-card',ref:dragRef,draggable:true,
+    onDragStart:e=>{e.dataTransfer.setData('taskId',String(task.id));dragRef.current.classList.add('dragging');},
+    onDragEnd:()=>dragRef.current.classList.remove('dragging'),
+  },
+    /* HEAD */
+    h('div',{className:'task-head'},
+      h('span',{className:'badge',style:{background:tm.bg,color:tm.tc,flexShrink:0,fontSize:10}},task.type),
+      h('span',{className:'task-name',contentEditable:true,suppressContentEditableWarning:true,
+        onBlur:e=>onUpdate({...task,name:e.target.innerText.trim()}),
+        onKeyDown:e=>{if(e.key==='Enter'){e.preventDefault();e.target.blur();}}
+      },task.name),
+      sem&&h('span',{className:'sem-dot',style:{background:sem.color},title:sem.label}),
+    ),
+    /* CR LIFECYCLE */
+    task.type==='CR'&&h('div',{className:'cr-section'},
+      h('div',{className:'cr-phases'},
+        CR_PHASES.map(p=>h('span',{key:p,
+          className:'cr-phase'+(task.crPhase===p?' active':''),
+          onClick:()=>onUpdate({...task,crPhase:p})},p))
+      ),
+      h('div',{className:'cr-datetime'},
+        h('i',{className:'ti ti-calendar-event',style:{fontSize:11,color:'var(--text-3)',flexShrink:0}}),
+        editingDate
+          ? h('input',{
+              type:'datetime-local',
+              className:'cr-datetime-inp',
+              autoFocus:true,
+              defaultValue:toDatetimeLocal(task.crDatetime||''),
+              onBlur:e=>{onUpdate({...task,crDatetime:e.target.value||null});setEditingDate(false);},
+              onKeyDown:e=>{if(e.key==='Escape')setEditingDate(false);if(e.key==='Enter')e.target.blur();}
+            })
+          : h('span',{
+              className:'cr-datetime-inp',
+              style:{cursor:'pointer',color:task.crDatetime?'var(--text)':'var(--text-3)',userSelect:'none'},
+              title:'Clic para editar fecha y hora',
+              onClick:()=>setEditingDate(true)
+            }, task.crDatetime ? formatDatetime(task.crDatetime) : 'Definir fecha y hora…')
+      )
+    ),
+    /* FOOTER */
+    h('div',{className:'task-footer'},
+      h('div',{style:{display:'flex',alignItems:'center',gap:5}},
+        h(Avatar,{eng,size:20}),
+        h('select',{value:task.eng,
+          style:{fontSize:10,padding:'1px 18px 1px 3px',border:'none',background:'none',color:'var(--text-3)',cursor:'pointer',appearance:'auto',maxWidth:80},
+          onChange:e=>onUpdate({...task,eng:e.target.value})},
+          engineers.filter(e=>e.active).map(e=>h('option',{key:e.id,value:e.id},e.name.split(' ')[0]))
+        )
+      ),
+      h('div',{style:{display:'flex',alignItems:'center',gap:5}},
+        h('i',{className:'ti ti-clock',style:{fontSize:12,color:'var(--text-3)'}}),
+        h('input',{type:'number',className:'task-time-inp',value:task.time,min:0,step:5,
+          onChange:e=>onUpdate({...task,time:parseInt(e.target.value)||0})}),
+        h('span',{style:{fontSize:10,color:'var(--text-3)'}},task.time===0?'—':'m'),
+        canDelete&&h('button',{className:'icon-btn del',title:'Eliminar',onClick:()=>onDelete(task.id)},
+          h('i',{className:'ti ti-trash'}))
+      )
+    )
+  );
+}
+
+/* ── KANBAN COLUMN ── */
+function KanbanCol({colId,title,tasks,engineers,onUpdate,onDelete,onDrop,onAdd}){
+  const [over,setOver]=useState(false);
+  return h('div',{className:'kol'},
+    h('div',{className:'kol-head'},
+      h('span',{className:'kol-title'},title),
+      h('span',{className:'kol-count'},tasks.length)
+    ),
+    h('div',{
+      className:'kol-body'+(over?' drag-over':''),
+      onDragOver:e=>{e.preventDefault();setOver(true);},
+      onDragLeave:()=>setOver(false),
+      onDrop:e=>{e.preventDefault();setOver(false);onDrop(parseInt(e.dataTransfer.getData('taskId')),colId);}
+    },
+      tasks.length===0&&h('div',{className:'empty'},'Sin tareas'),
+      tasks.map(t=>h(TaskCard,{key:t.id,task:t,engineers,onUpdate,onDelete,canDelete:colId==='done'&&t.type!=='R'}))
+    ),
+    colId!=='done'&&h('button',{className:'add-task-btn',onClick:()=>onAdd(colId)},
+      h('i',{className:'ti ti-plus',style:{fontSize:12}}),'Agregar tarea'
+    )
+  );
+}
+
+/* ── COMBINED DASHBOARD + KANBAN VIEW ── */
+function MainView({tasks,setTasks,engineers,toast}){
+  const [filterTypes,setFilterTypes]=useState({CR:true,PL:true,R:true,S:true,INC:true});
+  const [filterEng,setFilterEng]=useState('all');
+  const [showModal,setShowModal]=useState(false);
+  const [newTask,setNewTask]=useState({type:'S',name:'',eng:'kz',time:30,crPhase:'Petición',crDatetime:'',status:'pending'});
+
+  const cap=getCap(tasks,engineers);
+  const active=engineers.filter(e=>e.active);
+  const done=tasks.filter(t=>t.status==='done').length;
+  const inprog=tasks.filter(t=>t.status==='inprogress').length;
+  const incCount=tasks.filter(t=>t.type==='INC'&&t.status!=='done').length;
+
+  const visible=tasks.filter(t=>filterTypes[t.type]&&(filterEng==='all'||t.eng===filterEng));
+  const byCol=col=>visible.filter(t=>t.status===col);
+  const COLS={pending:'Pendiente',inprogress:'En proceso',paused:'Pausado',done:'Completado'};
+
+  const updateTask=u=>setTasks(prev=>prev.map(t=>t.id===u.id?u:t));
+  const deleteTask=id=>setTasks(prev=>prev.filter(t=>t.id!==id));
+  const moveTask=(id,status)=>{
+    setTasks(prev=>prev.map(t=>{
+      if(t.id!==id)return t;
+      if(status==='inprogress'&&t.type==='INC')toast('⚡ Bomberazo activado');
+      return{...t,status};
+    }));
+  };
+  const addTask=colId=>{
+    const firstEng=active[0]?.id||'kz';
+    setNewTask({type:'S',name:'',eng:firstEng,time:30,crPhase:'Petición',crDatetime:'',status:colId});
+    setShowModal(true);
+  };
+  const saveTask=()=>{
+    if(!newTask.name.trim())return;
+    let t={...newTask,id:uid()};
+    if(t.type==='S'||t.type==='INC')t=assignLeast(tasks,engineers,t);
+    setTasks(prev=>[...prev,t]);
+    toast('Tarea agregada');setShowModal(false);
+  };
+
+  return h('div',null,
+    /* ── STAT STRIP ── */
+    h('div',{className:'stat-strip'},
+      h('div',{className:'stat-card'},
+        h('div',{className:'stat-num'},active.length),
+        h('div',{className:'stat-label'},'Ingenieros activos'),
+        h('div',{className:'stat-sub',style:{color:'var(--purple-600)'}},active.length*8+'h capacidad')
+      ),
+      h('div',{className:'stat-card'},
+        h('div',{className:'stat-num'},tasks.length),
+        h('div',{className:'stat-label'},'Tareas totales'),
+        h('div',{className:'stat-sub',style:{color:'#639922'}},done+' completadas')
+      ),
+      h('div',{className:'stat-card'},
+        h('div',{className:'stat-num'},inprog),
+        h('div',{className:'stat-label'},'En proceso'),
+        h('div',{className:'stat-sub',style:{color:'#BA7517'}},'En ejecución')
+      ),
+      h('div',{className:'stat-card'},
+        h('div',{className:'stat-num',style:{color:incCount>0?'#E24B4A':'var(--text)'}},incCount),
+        h('div',{className:'stat-label'},'Bomberazos activos'),
+        h('div',{className:'stat-sub',style:{color:incCount?'#E24B4A':'#639922'}},incCount?'¡Atención!':'Sin incidentes')
+      )
+    ),
+
+    /* ── CAPACITY STRIP ── */
+    h('div',{className:'section-label'},'Capacidad del equipo'),
+    h('div',{className:'cap-strip'},
+      active.map(eng=>{
+        const mins=cap[eng.id]||0;
+        const pct=Math.min(100,Math.round(mins/480*100));
+        const col=capColor(mins);
+        const engTasks=tasks
+          .filter(t=>t.eng===eng.id&&t.status!=='done')
+          .sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+        return h('div',{key:eng.id,className:'cap-card'},
+          h('div',{style:{display:'flex',alignItems:'center',gap:7,marginBottom:5}},
+            h(Avatar,{eng,size:26}),
+            h('div',null,
+              h('div',{className:'cap-name'},eng.name),
+              h('div',{className:'cap-role'},eng.role)
+            )
+          ),
+          h('div',{className:'cap-track'},h('div',{className:'cap-fill',style:{width:pct+'%',background:col}})),
+          h('div',{className:'cap-meta'},
+            h('span',{className:'cap-hours',style:{color:col}},(mins/60).toFixed(1)+'h / 8h'),
+            h('span',{className:'cap-status',style:{color:col}},capLabel(mins))
+          ),
+          /* ── TASK LIST ── */
+          engTasks.length>0&&h('div',{className:'cap-tasks'},
+            engTasks.map(t=>{
+              const tm=TYPE_META[t.type]||TYPE_META.S;
+              const sc=STATUS_COLORS[t.status]||STATUS_COLORS.pending;
+              const si=STATUS_INITIAL[t.status]||'?';
+              const shortName=t.name.replace(/^(INC|CR|PL|R|S)\s*-\s*/i,'');
+              return h('div',{key:t.id,className:'cap-task-row'},
+                h('span',{className:'cap-task-type',style:{background:tm.bg,color:tm.tc}},t.type),
+                h('span',{className:'cap-task-name',title:shortName},shortName),
+                h('span',{className:'cap-task-hours'},Math.round(t.time/60*10)/10+'h'),
+                h('span',{className:'cap-task-status',style:{background:sc.bg,color:sc.tc},title:t.status},si)
+              );
+            })
+          )
+        );
+      })
+    ),
+
+    /* ── KANBAN TOOLBAR ── */
+    h('div',{className:'section-label',style:{marginTop:'0.75rem'}},'Tablero de tareas'),
+    h('div',{className:'kb-toolbar'},
+      h('span',{style:{fontSize:11,color:'var(--text-3)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em'}},'Tipo:'),
+      Object.keys(TYPE_META).map(tp=>{
+        const m=TYPE_META[tp];
+        const on=filterTypes[tp];
+        return h('label',{key:tp,className:'filter-chip'+(on?' on':''),
+          style:on?{}:{background:m.bg,color:m.tc,borderColor:'transparent'}},
+          h('input',{type:'checkbox',style:{display:'none'},checked:on,
+            onChange:()=>setFilterTypes(p=>({...p,[tp]:!p[tp]}))}),
+          tp
+        );
+      }),
+      h('select',{className:'kb-select',value:filterEng,onChange:e=>setFilterEng(e.target.value)},
+        h('option',{value:'all'},'Todos los ingenieros'),
+        active.map(e=>h('option',{key:e.id,value:e.id},e.name))
+      ),
+      h('button',{className:'btn btn-secondary btn-sm',style:{marginLeft:'auto'},
+        onClick:()=>{setTasks(prev=>rotateR(prev,engineers));toast('Tareas R redistribuidas');}},
+        h('i',{className:'ti ti-refresh',style:{fontSize:13}}),' Reiniciar R'
+      )
+    ),
+
+    /* ── KANBAN BOARD ── */
+    h('div',{className:'kb-board'},
+      Object.entries(COLS).map(([colId,title])=>
+        h(KanbanCol,{key:colId,colId,title,tasks:byCol(colId),engineers,onUpdate:updateTask,onDelete:deleteTask,onDrop:moveTask,onAdd:addTask})
+      )
+    ),
+
+    /* ── NUEVA TAREA MODAL ── */
+    showModal&&h('div',{className:'overlay',onClick:e=>{if(e.target===e.currentTarget)setShowModal(false);}},
+      h('div',{className:'modal modal-sm'},
+        h('div',{className:'modal-title'},'Nueva tarea'),
+        h('div',{className:'modal-sub'},'Las tareas S e INC se asignan al recurso con mayor holgura'),
+        h('div',{className:'field'},
+          h('label',null,'Tipo'),
+          h('select',{value:newTask.type,onChange:e=>setNewTask(p=>({...p,type:e.target.value}))},
+            Object.keys(TYPE_META).filter(t=>t!=='R').map(t=>
+              h('option',{key:t,value:t},`${t} — ${t==='CR'?'Change Request':t==='PL'?'Proyecto':t==='S'?'Surgida en el día':'Bomberazo P0/P1'}`)
+            )
+          )
+        ),
+        h('div',{className:'field'},
+          h('label',null,'Nombre de la tarea'),
+          h('input',{type:'text',placeholder:'Describe la tarea…',value:newTask.name,onChange:e=>setNewTask(p=>({...p,name:e.target.value})),
+            onKeyDown:e=>{if(e.key==='Enter')saveTask();}})
+        ),
+        h('div',{className:'col2'},
+          h('div',{className:'field'},
+            h('label',null,'Asignado a'),
+            h('select',{value:newTask.eng,onChange:e=>setNewTask(p=>({...p,eng:e.target.value}))},
+              active.map(e=>h('option',{key:e.id,value:e.id},e.name))
+            )
+          ),
+          h('div',{className:'field'},
+            h('label',null,'Tiempo (min)'),
+            h('input',{type:'number',value:newTask.time,min:0,step:5,onChange:e=>setNewTask(p=>({...p,time:parseInt(e.target.value)||30}))})
+          )
+        ),
+        newTask.type==='CR'&&h('div',null,
+          h('div',{className:'field'},
+            h('label',null,'Fase inicial'),
+            h('select',{value:newTask.crPhase,onChange:e=>setNewTask(p=>({...p,crPhase:e.target.value}))},
+              CR_PHASES.map(p=>h('option',{key:p,value:p},p))
+            )
+          ),
+          h('div',{className:'field'},
+            h('label',null,'Fecha y hora de liberación'),
+            h('input',{type:'datetime-local',value:newTask.crDatetime||'',onChange:e=>setNewTask(p=>({...p,crDatetime:e.target.value}))})
+          )
+        ),
+        h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end',marginTop:4}},
+          h('button',{className:'btn btn-secondary',onClick:()=>setShowModal(false)},'Cancelar'),
+          h('button',{className:'btn btn-primary',onClick:saveTask},'Agregar tarea')
+        )
+      )
+    )
+  );
+}
+
+/* ── ATTENDANCE MODAL ── */
+function AttendanceModal({engineers,setEngineers,setTasks,toast,onClose}){
+  const [local,setLocal]=useState(engineers.map(e=>({...e})));
+  const toggle=id=>setLocal(p=>p.map(e=>e.id===id?{...e,active:!e.active}:e));
+  const upd=(id,f,v)=>setLocal(p=>p.map(e=>e.id===id?{...e,[f]:v}:e));
+  const active=local.filter(e=>e.active);
+
+  const confirm=()=>{
+    setEngineers(local);
+    setTasks(prev=>{let i=0;return prev.map(t=>{if(t.type!=='R')return t;const e=active[i++%active.length];return{...t,eng:e?e.id:t.eng};});});
+    toast('Asistencia registrada — tareas R reasignadas');
+    onClose();
+  };
+
+  return h('div',{className:'overlay'},
+    h('div',{className:'modal'},
+      h('div',{className:'modal-title'},h('i',{className:'ti ti-calendar-check',style:{marginRight:7,color:'var(--purple-600)'}}),'Registro de asistencia'),
+      h('div',{className:'modal-sub'},'Activa los ingenieros presentes. Los nombres y puestos son editables.'),
+      h('div',{style:{background:'var(--purple-50)',border:'1px solid var(--purple-100)',borderRadius:10,padding:'10px 14px',marginBottom:'1rem',display:'flex',gap:24}},
+        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},active.length),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Activos hoy')),
+        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},active.length*8+'h'),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Capacidad total')),
+      ),
+      h('div',{className:'att-grid',style:{marginBottom:'1.25rem'}},
+        local.map(eng=>h('div',{key:eng.id,className:'att-card'},
+          h('div',{className:'att-toggle '+(eng.active?'on':'off'),onClick:()=>toggle(eng.id)}),
+          h(Avatar,{eng,size:32}),
+          h('div',{style:{flex:1,minWidth:0}},
+            h('input',{type:'text',value:eng.name,style:{border:'none',padding:0,fontSize:12,fontWeight:600,color:'var(--text)',background:'none',width:'100%'},onChange:e=>upd(eng.id,'name',e.target.value)}),
+            h('input',{type:'text',value:eng.role,style:{border:'none',padding:0,fontSize:10,color:'var(--text-3)',background:'none',width:'100%'},onChange:e=>upd(eng.id,'role',e.target.value)})
+          )
+        ))
+      ),
+      h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+        h('button',{className:'btn btn-primary',onClick:confirm},'Confirmar y comenzar jornada')
+      )
+    )
+  );
+}
+
+/* ── COPILOT VIEW ── */
+function CopilotView({tasks,engineers,toast}){
+  const [tab,setTab]=useState('alerts');
+  const [alertIn,setAlertIn]=useState('');
+  const [alertOut,setAlertOut]=useState('');
+  const [loading,setLoading]=useState(false);
+  const [handover,setHandover]=useState('');
+
+  const processAlert=async()=>{
+    if(!alertIn.trim())return;
+    setLoading(true);setAlertOut('');
+    await new Promise(r=>setTimeout(r,1400));
+    setAlertOut(`📋 TICKET ESTRUCTURADO — Copilot AI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Título:        Error crítico en capa de servicios Java
+Prioridad:     🔴 P1 — Alta
+Estimación:    90 min
+Categoría:     Infraestructura / JVM Runtime
+Asignado a:    Especialista L3
+
+📝 DESCRIPCIÓN
+Se detectó java.lang.OutOfMemoryError: Java heap space
+durante el procesamiento de mensajes en cola de eventos.
+
+🔧 PLAN DE ACCIÓN
+1. Capturar heap dump: jmap -dump:live,format=b,file=heap.hprof <PID>
+2. Analizar con Eclipse MAT para identificar memory leak
+3. Revisar configuración -Xmx / -Xms en JVM args
+4. Incrementar pool de conexiones JDBC si aplica
+5. Reiniciar servicio con monitoreo activo (Grafana + alerts)
+6. Notificar stakeholders si impacto > 30 min
+
+⚠️  DEPENDENCIAS
+• Oracle DB: verificar conexiones activas y timeouts
+• Load balancer: activar failover si necesario
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Generado por Microsoft Copilot — ${new Date().toLocaleTimeString('es-MX')}`);
+    setLoading(false);
+  };
+
+  const genHandover=async()=>{
+    setLoading(true);setHandover('');
+    await new Promise(r=>setTimeout(r,1500));
+    const active=engineers.filter(e=>e.active);
+    const inprog=tasks.filter(t=>t.status==='inprogress');
+    const pending=tasks.filter(t=>t.status==='pending');
+    const doneT=tasks.filter(t=>t.status==='done');
+    const incs=tasks.filter(t=>t.type==='INC'&&t.status!=='done');
+    setHandover(`REPORTE DE HANDOVER — TURNO L3
+Fecha: ${new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}
+Generado: ${new Date().toLocaleTimeString('es-MX')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👥 EQUIPO ACTIVO (${active.length} ingenieros)
+${active.map(e=>`  • ${e.name} [${e.role}]`).join('\n')}
+
+📊 RESUMEN DE JORNADA
+  ✅ Tareas completadas:  ${doneT.length}
+  🔄 En proceso:          ${inprog.length}
+  ⏳ Pendientes:          ${pending.length}
+${incs.length?`  🔴 BOMBERAZOS activos:  ${incs.length}`:'  ✅ Sin bomberazos en el turno'}
+
+🔄 EN PROCESO (entregar a siguiente turno)
+${inprog.length?inprog.map(t=>`  [${t.type}] ${t.name}\n        Ing: ${engineers.find(e=>e.id===t.eng)?.name||'—'} — ${(t.time/60).toFixed(1)}h est.`).join('\n'):'  Ninguna'}
+
+⏳ PENDIENTES PARA PRÓXIMO TURNO
+${pending.slice(0,6).map(t=>`  [${t.type}] ${t.name}`).join('\n')}${pending.length>6?`\n  … y ${pending.length-6} más`:''}
+
+⚠️  NOTAS CRÍTICAS
+${incs.length?incs.map(t=>`  🔴 ${t.name} — requiere seguimiento inmediato`).join('\n'):'  Sin alertas críticas pendientes.'}
+  Verificar sanity de ambientes al inicio de turno.
+  Revisar ctasks de parches abiertas antes de proceder.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Reporte generado por Microsoft Copilot
+L3 Operations Engine v1.0`);
+    setLoading(false);
+  };
+
+  const cap=getCap(tasks,engineers);
+  const tabs=[{id:'alerts',label:'Copiloto de alertas',icon:'ti-bolt'},{id:'handover',label:'Handover de turno',icon:'ti-file-text'},{id:'analysis',label:'Análisis de carga',icon:'ti-chart-bar'}];
+
+  return h('div',null,
+    h('div',{className:'ai-panel'},
+      h('div',{className:'ai-title'},h('i',{className:'ti ti-robot',style:{fontSize:16}}),'Microsoft Copilot — Operaciones L3'),
+      h('div',{className:'ai-body'},'Asistente de IA integrado nativo, disponible ante restricciones de firewall corporativo.')
+    ),
+    h('div',{className:'tabs'},tabs.map(t=>h('div',{key:t.id,className:'tab'+(tab===t.id?' active':''),onClick:()=>setTab(t.id)},h('i',{className:'ti '+t.icon,style:{marginRight:5}}),t.label))),
+    tab==='alerts'&&h('div',null,
+      h('div',{className:'field'},h('label',null,'Log o descripción del error'),h('textarea',{rows:5,placeholder:'Pega el log de error aquí…',value:alertIn,onChange:e=>setAlertIn(e.target.value)})),
+      h('button',{className:'btn btn-primary',onClick:processAlert,disabled:loading||!alertIn.trim()},loading?'Analizando…':'Estructurar con Copilot'),
+      alertOut&&h('div',{className:'ai-output'},alertOut)
+    ),
+    tab==='handover'&&h('div',null,
+      h('p',{style:{fontSize:13,color:'var(--text-2)',marginBottom:'1rem'}},'Copilot leerá el tablero actual y generará el reporte técnico de entrega de turno.'),
+      h('button',{className:'btn btn-primary',onClick:genHandover,disabled:loading},loading?'Generando…':'Generar handover'),
+      handover&&h('div',{style:{marginTop:'1rem'}},
+        h('div',{className:'handover-box'},handover),
+        h('button',{className:'btn btn-secondary btn-sm',style:{marginTop:8},onClick:()=>{navigator.clipboard?.writeText(handover);toast('Copiado al portapapeles');}},
+          h('i',{className:'ti ti-copy',style:{fontSize:12}}),' Copiar')
+      )
+    ),
+    tab==='analysis'&&h('div',null,
+      engineers.filter(e=>e.active).map(eng=>{
+        const mins=cap[eng.id]||0;
+        const pct=Math.min(100,Math.round(mins/480*100));
+        const col=capColor(mins);
+        const myTasks=tasks.filter(t=>t.eng===eng.id&&t.status!=='done');
+        return h('div',{key:eng.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'1rem',marginBottom:10}},
+          h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:8}},
+            h(Avatar,{eng,size:32}),
+            h('div',{style:{flex:1}},h('div',{style:{fontSize:13,fontWeight:600}},eng.name),h('div',{style:{fontSize:11,color:'var(--text-3)'}},eng.role)),
+            h('div',{style:{textAlign:'right'}},h('div',{style:{fontSize:14,fontWeight:700,color:col}},(mins/60).toFixed(1)+'h'),h('div',{style:{fontSize:10,color:col}},capLabel(mins)))
+          ),
+          h('div',{className:'progress-bar-wrap'},h('div',{className:'progress-bar',style:{'--pw':pct+'%',background:col}})),
+          h('div',{style:{marginTop:7,display:'flex',gap:5,flexWrap:'wrap'}},
+            myTasks.map(t=>h('span',{key:t.id,className:'badge',style:{background:TYPE_META[t.type]?.bg,color:TYPE_META[t.type]?.tc,fontSize:10}},
+              t.name.substring(0,22)+(t.name.length>22?'…':'')))
+          )
+        );
+      })
+    )
+  );
+}
+
+/* ── ENGINEERS VIEW ── */
+function EngineersView({engineers,setEngineers,toast}){
+  const [editId,setEditId]=useState(null);
+  const [form,setForm]=useState({});
+  const save=()=>{setEngineers(p=>p.map(e=>e.id===editId?{...e,...form}:e));setEditId(null);toast('Ingeniero actualizado');};
+  return h('div',null,
+    h('div',{className:'section-label'},'Equipo L3 / L2'),
+    h('div',{style:{display:'flex',flexDirection:'column',gap:9}},
+      engineers.map(eng=>h('div',{key:eng.id,style:{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,padding:'12px 14px',display:'flex',alignItems:'center',gap:12}},
+        h(Avatar,{eng,size:38}),
+        h('div',{style:{flex:1}},
+          h('div',{style:{fontSize:13,fontWeight:600}},eng.name),
+          h('div',{style:{fontSize:11,color:'var(--text-3)'}},eng.role),
+          h('span',{className:'badge',style:{background:eng.active?'var(--green-50)':'var(--gray-50)',color:eng.active?'var(--green-600)':'var(--gray-400)',marginTop:3}},eng.active?'Activo hoy':'Inactivo hoy')
+        ),
+        h('button',{className:'btn btn-secondary btn-sm',onClick:()=>{setEditId(eng.id);setForm({name:eng.name,role:eng.role});}},h('i',{className:'ti ti-edit',style:{fontSize:12}}),' Editar')
+      ))
+    ),
+    editId&&h('div',{className:'overlay',onClick:e=>{if(e.target===e.currentTarget)setEditId(null);}},
+      h('div',{className:'modal modal-sm'},
+        h('div',{className:'modal-title'},'Editar ingeniero'),
+        h('div',{className:'field'},h('label',null,'Nombre'),h('input',{type:'text',value:form.name||'',onChange:e=>setForm(p=>({...p,name:e.target.value}))})),
+        h('div',{className:'field'},h('label',null,'Puesto'),h('input',{type:'text',value:form.role||'',onChange:e=>setForm(p=>({...p,role:e.target.value}))})),
+        h('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+          h('button',{className:'btn btn-secondary',onClick:()=>setEditId(null)},'Cancelar'),
+          h('button',{className:'btn btn-primary',onClick:save},'Guardar')
+        )
+      )
+    )
+  );
+}
+
+/* ── APP ROOT ── */
+function App(){
+  const [engineers,setEngineers]=useState(DEFAULT_ENGINEERS);
+  const [tasks,setTasks]=useState(()=>buildInitialTasks(DEFAULT_ENGINEERS));
+  const [view,setView]=useState('main');
+  const [showAttendance,setShowAttendance]=useState(true);
+  const [toastMsg,setToastMsg]=useState(null);
+
+  const showToast=msg=>setToastMsg(msg);
+  const cap=getCap(tasks,engineers);
+  const active=engineers.filter(e=>e.active);
+
+  const nav=[
+    {id:'main',label:'Dashboard & Kanban',icon:'ti-layout-kanban'},
+    {id:'copilot',label:'Copilot IA',icon:'ti-robot'},
+    {id:'engineers',label:'Equipo',icon:'ti-users'},
+  ];
+  const viewTitles={main:'Dashboard & Tablero Kanban',copilot:'Microsoft Copilot',engineers:'Gestión del equipo'};
+
+  return h('div',{className:'app'},
+    /* SIDEBAR */
+    h('div',{className:'sidebar'},
+      h('div',{className:'sidebar-logo'},
+        h('div',{className:'sidebar-logo-icon'},h('i',{className:'ti ti-cpu',style:{color:'#fff',fontSize:17}})),
+        h('div',null,h('div',{className:'sidebar-logo-text'},'L3 Ops Engine'),h('div',{className:'sidebar-logo-sub'},'Operations Intelligence'))
+      ),
+      h('div',{className:'nav-section'},'Navegación'),
+      nav.map(n=>h('div',{key:n.id,className:'nav-item'+(view===n.id?' active':''),onClick:()=>setView(n.id)},
+        h('i',{className:'ti '+n.icon}),n.label
+      )),
+      h('div',{className:'nav-section',style:{marginTop:'auto'}},'Acciones'),
+      h('div',{className:'nav-item',onClick:()=>setShowAttendance(true)},
+        h('i',{className:'ti ti-calendar-check'}),'Registrar asistencia'
+      ),
+      /* Team status mini */
+      h('div',{style:{marginTop:'0.75rem',padding:'10px 12px',background:'rgba(255,255,255,0.06)',borderRadius:9}},
+        h('div',{style:{fontSize:9,color:'var(--purple-400)',marginBottom:5,textTransform:'uppercase',letterSpacing:'0.09em',fontWeight:600}},'Estado del equipo'),
+        active.map(e=>{
+          const mins=cap[e.id]||0;
+          return h('div',{key:e.id,style:{display:'flex',alignItems:'center',gap:7,padding:'2px 0'}},
+            h('div',{style:{width:5,height:5,borderRadius:'50%',background:capColor(mins),flexShrink:0}}),
+            h('span',{style:{fontSize:11,color:'var(--purple-100)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}},e.name),
+            h('span',{style:{fontSize:10,color:capColor(mins),fontWeight:600,flexShrink:0}},(mins/60).toFixed(1)+'h')
+          );
+        })
+      )
+    ),
+    /* MAIN */
+    h('div',{className:'main'},
+      h('div',{className:'topbar'},
+        h('div',null,
+          h('div',{className:'topbar-title'},viewTitles[view]||''),
+          h('div',{className:'topbar-sub'},new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'}))
+        ),
+        h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+          active.map(e=>{
+            const mins=cap[e.id]||0;
+            return h('div',{key:e.id,title:`${e.name} — ${(mins/60).toFixed(1)}h`,style:{position:'relative',cursor:'default'}},
+              h(Avatar,{eng:e,size:28}),
+              h('div',{style:{position:'absolute',bottom:-1,right:-1,width:7,height:7,borderRadius:'50%',background:capColor(mins),border:'1.5px solid var(--surface)'}})
+            );
+          }),
+          h('button',{className:'btn btn-primary btn-sm',onClick:()=>setShowAttendance(true)},
+            h('i',{className:'ti ti-calendar-check',style:{fontSize:13}}),' Asistencia'
+          )
+        )
+      ),
+      h('div',{className:'content'},
+        view==='main'&&h(MainView,{tasks,setTasks,engineers,toast:showToast}),
+        view==='copilot'&&h(CopilotView,{tasks,engineers,toast:showToast}),
+        view==='engineers'&&h(EngineersView,{engineers,setEngineers,toast:showToast}),
+      )
+    ),
+    showAttendance&&h(AttendanceModal,{engineers,setEngineers,setTasks,toast:showToast,onClose:()=>{setShowAttendance(false);setView('main');}}),
+    toastMsg&&h(Toast,{msg:toastMsg,onDone:()=>setToastMsg(null)})
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
