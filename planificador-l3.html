@@ -86,7 +86,7 @@
   .cap-task-type{flex-shrink:0;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;min-width:26px;text-align:center;}
   .cap-task-name{flex:1;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .cap-task-hours{flex-shrink:0;color:var(--text-3);font-weight:600;}
-  .cap-task-status{flex-shrink:0;width:14px;height:14px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;}
+  .cap-task-status{flex-shrink:0;font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap;}
   /* Kanban toolbar */
   .kb-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:0.9rem;}
   .filter-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-2);transition:all 0.12s;user-select:none;}
@@ -168,6 +168,7 @@ const h=React.createElement;
 
 /* ── DATA ── */
 const DEFAULT_ENGINEERS=[
+  {id:'mgr',name:'Manager',role:'Manager',initials:'MG',color:'#F0F0F0',tc:'#333333',active:true,isManager:true},
   {id:'kz',name:'Katia Zambrano',role:'L3 Junio',initials:'KZ',color:'#EEEDFE',tc:'#3C3489',active:true},
   {id:'ml',name:'Marco Lara',role:'L3',initials:'ML',color:'#E1F5EE',tc:'#085041',active:true},
   {id:'yl',name:'Yoshi Luna',role:'L3',initials:'YL',color:'#FAECE7',tc:'#993C1D',active:true},
@@ -195,6 +196,7 @@ const TYPE_META={
 };
 const TYPE_ORDER=['INC','R','S','CR','PL'];
 const STATUS_INITIAL={pending:'P',inprogress:'E',paused:'Pa',done:'✓'};
+const STATUS_LABEL={pending:'PEN',inprogress:'EN P',paused:'PAU',done:'OK'};
 const STATUS_COLORS={
   pending:{bg:'#F1EFE8',tc:'#888780'},
   inprogress:{bg:'#EEEDFE',tc:'#3C3489'},
@@ -238,6 +240,25 @@ function getCap(tasks,engineers){
   tasks.forEach(t=>{if(t.status!=='done')m[t.eng]=(m[t.eng]||0)+t.time;});
   return m;
 }
+/* Presence: track last activity per user id */
+const _presence={};
+function touchPresence(id){_presence[id]=Date.now();}
+function getPresenceColor(id){
+  const t=_presence[id];
+  if(!t)return'#B4B2A9';
+  const sec=(Date.now()-t)/1000;
+  if(sec<120)return'#639922';
+  if(sec<300)return'#BA7517';
+  return'#B4B2A9';
+}
+function getPresenceLabel(id){
+  const t=_presence[id];
+  if(!t)return'Sin actividad';
+  const sec=(Date.now()-t)/1000;
+  if(sec<120)return'Activo';
+  if(sec<300)return'Inactivo';
+  return'Desconectado';
+}
 function capColor(mins){const h=mins/60;return h<=6?'#639922':h<=8?'#BA7517':'#E24B4A';}
 function capLabel(mins){const h=mins/60;return h<=6?'Holgura':h<=8?'Óptima':'Sobrecarga';}
 function getCrSem(t){
@@ -249,13 +270,13 @@ function getCrSem(t){
 }
 function engById(engineers,id){return engineers.find(e=>e.id===id)||engineers[0]||{name:'?',initials:'?',color:'#eee',tc:'#333'};}
 function rotateR(tasks,engineers){
-  const active=engineers.filter(e=>e.active);
+  const active=engineers.filter(e=>e.active&&!e.isManager);
   if(!active.length)return tasks;
   let i=0;
   return tasks.map(t=>{if(t.type!=='R')return t;const e=active[i++%active.length];return{...t,eng:e.id};});
 }
 function assignLeast(tasks,engineers,nt){
-  const active=engineers.filter(e=>e.active);
+  const active=engineers.filter(e=>e.active&&!e.isManager);
   if(!active.length)return nt;
   const cap=getCap(tasks,engineers);
   const s=[...active].sort((a,b)=>(cap[a.id]||0)-(cap[b.id]||0));
@@ -375,19 +396,23 @@ function MainView({tasks,setTasks,engineers,toast}){
 
   const cap=getCap(tasks,engineers);
   const active=engineers.filter(e=>e.active);
+  const activeNonMgr=engineers.filter(e=>e.active&&!e.isManager);
   const done=tasks.filter(t=>t.status==='done').length;
   const inprog=tasks.filter(t=>t.status==='inprogress').length;
   const incCount=tasks.filter(t=>t.type==='INC'&&t.status!=='done').length;
+  const [,forceUpdate]=useState(0);
+  useEffect(()=>{const iv=setInterval(()=>forceUpdate(n=>n+1),15000);return()=>clearInterval(iv);},[]);
 
   const visible=tasks.filter(t=>filterTypes[t.type]&&(filterEng==='all'||t.eng===filterEng));
   const byCol=col=>visible.filter(t=>t.status===col);
   const COLS={pending:'Pendiente',inprogress:'En proceso',paused:'Pausado',done:'Completado'};
 
-  const updateTask=u=>setTasks(prev=>prev.map(t=>t.id===u.id?u:t));
+  const updateTask=u=>{touchPresence(u.eng);setTasks(prev=>prev.map(t=>t.id===u.id?u:t));};
   const deleteTask=id=>setTasks(prev=>prev.filter(t=>t.id!==id));
   const moveTask=(id,status)=>{
     setTasks(prev=>prev.map(t=>{
       if(t.id!==id)return t;
+      touchPresence(t.eng);
       if(status==='inprogress'&&t.type==='INC')toast('⚡ Bomberazo activado');
       return{...t,status};
     }));
@@ -409,9 +434,9 @@ function MainView({tasks,setTasks,engineers,toast}){
     /* ── STAT STRIP ── */
     h('div',{className:'stat-strip'},
       h('div',{className:'stat-card'},
-        h('div',{className:'stat-num'},active.length),
+        h('div',{className:'stat-num'},activeNonMgr.length),
         h('div',{className:'stat-label'},'Ingenieros activos'),
-        h('div',{className:'stat-sub',style:{color:'var(--purple-600)'}},active.length*8+'h capacidad')
+        h('div',{className:'stat-sub',style:{color:'var(--purple-600)'}},activeNonMgr.length*8+'h capacidad')
       ),
       h('div',{className:'stat-card'},
         h('div',{className:'stat-num'},tasks.length),
@@ -440,12 +465,20 @@ function MainView({tasks,setTasks,engineers,toast}){
         const engTasks=tasks
           .filter(t=>t.eng===eng.id&&t.status!=='done')
           .sort((a,b)=>TYPE_ORDER.indexOf(a.type)-TYPE_ORDER.indexOf(b.type));
+        const presColor=getPresenceColor(eng.id);
+        const presLabel=getPresenceLabel(eng.id);
         return h('div',{key:eng.id,className:'cap-card'},
           h('div',{style:{display:'flex',alignItems:'center',gap:7,marginBottom:5}},
-            h(Avatar,{eng,size:26}),
-            h('div',null,
+            h('div',{style:{position:'relative',flexShrink:0}},
+              h(Avatar,{eng,size:26}),
+              h('div',{title:presLabel,style:{position:'absolute',bottom:0,right:0,width:8,height:8,borderRadius:'50%',background:presColor,border:'1.5px solid #fff'}})
+            ),
+            h('div',{style:{flex:1,minWidth:0}},
               h('div',{className:'cap-name'},eng.name),
-              h('div',{className:'cap-role'},eng.role)
+              h('div',{className:'cap-role',style:{display:'flex',alignItems:'center',gap:4}},
+                eng.role,
+                eng.isManager&&h('span',{style:{fontSize:9,fontWeight:700,padding:'1px 4px',borderRadius:3,background:'#F0F0F0',color:'#555'},'title':'No incluido en distribución'},'MGR')
+              )
             )
           ),
           h('div',{className:'cap-track'},h('div',{className:'cap-fill',style:{width:pct+'%',background:col}})),
@@ -464,7 +497,7 @@ function MainView({tasks,setTasks,engineers,toast}){
                 h('span',{className:'cap-task-type',style:{background:tm.bg,color:tm.tc}},t.type),
                 h('span',{className:'cap-task-name',title:shortName},shortName),
                 h('span',{className:'cap-task-hours'},Math.round(t.time/60*10)/10+'h'),
-                h('span',{className:'cap-task-status',style:{background:sc.bg,color:sc.tc},title:t.status},si)
+                h('span',{className:'cap-task-status',style:{background:sc.bg,color:sc.tc}},STATUS_LABEL[t.status]||t.status)
               );
             })
           )
@@ -560,10 +593,11 @@ function AttendanceModal({engineers,setEngineers,setTasks,toast,onClose}){
   const toggle=id=>setLocal(p=>p.map(e=>e.id===id?{...e,active:!e.active}:e));
   const upd=(id,f,v)=>setLocal(p=>p.map(e=>e.id===id?{...e,[f]:v}:e));
   const active=local.filter(e=>e.active);
+  const activeNonMgr=local.filter(e=>e.active&&!e.isManager);
 
   const confirm=()=>{
     setEngineers(local);
-    setTasks(prev=>{let i=0;return prev.map(t=>{if(t.type!=='R')return t;const e=active[i++%active.length];return{...t,eng:e?e.id:t.eng};});});
+    setTasks(prev=>{let i=0;return prev.map(t=>{if(t.type!=='R')return t;const e=activeNonMgr[i++%activeNonMgr.length];return{...t,eng:e?e.id:t.eng};});});
     toast('Asistencia registrada — tareas R reasignadas');
     onClose();
   };
@@ -573,16 +607,20 @@ function AttendanceModal({engineers,setEngineers,setTasks,toast,onClose}){
       h('div',{className:'modal-title'},h('i',{className:'ti ti-calendar-check',style:{marginRight:7,color:'var(--purple-600)'}}),'Registro de asistencia'),
       h('div',{className:'modal-sub'},'Activa los ingenieros presentes. Los nombres y puestos son editables.'),
       h('div',{style:{background:'var(--purple-50)',border:'1px solid var(--purple-100)',borderRadius:10,padding:'10px 14px',marginBottom:'1rem',display:'flex',gap:24}},
-        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},active.length),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Activos hoy')),
-        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},active.length*8+'h'),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Capacidad total')),
+        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},activeNonMgr.length),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Ingenieros activos')),
+        h('div',null,h('div',{style:{fontSize:20,fontWeight:700,color:'var(--purple-900)'}},activeNonMgr.length*8+'h'),h('div',{style:{fontSize:10,color:'var(--text-3)'}},'Capacidad total')),
       ),
       h('div',{className:'att-grid',style:{marginBottom:'1.25rem'}},
         local.map(eng=>h('div',{key:eng.id,className:'att-card'},
           h('div',{className:'att-toggle '+(eng.active?'on':'off'),onClick:()=>toggle(eng.id)}),
           h(Avatar,{eng,size:32}),
           h('div',{style:{flex:1,minWidth:0}},
-            h('input',{type:'text',value:eng.name,style:{border:'none',padding:0,fontSize:12,fontWeight:600,color:'var(--text)',background:'none',width:'100%'},onChange:e=>upd(eng.id,'name',e.target.value)}),
-            h('input',{type:'text',value:eng.role,style:{border:'none',padding:0,fontSize:10,color:'var(--text-3)',background:'none',width:'100%'},onChange:e=>upd(eng.id,'role',e.target.value)})
+            h('div',{style:{display:'flex',alignItems:'center',gap:5}},
+              h('input',{type:'text',value:eng.name,style:{border:'none',padding:0,fontSize:12,fontWeight:600,color:'var(--text)',background:'none',flex:1,minWidth:0},onChange:e=>upd(eng.id,'name',e.target.value)}),
+              eng.isManager&&h('span',{style:{fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#E4E2F2',color:'var(--purple-800)',flexShrink:0}},'MGR')
+            ),
+            h('input',{type:'text',value:eng.role,style:{border:'none',padding:0,fontSize:10,color:'var(--text-3)',background:'none',width:'100%'},onChange:e=>upd(eng.id,'role',e.target.value)}),
+            eng.isManager&&h('div',{style:{fontSize:9,color:'var(--text-3)',marginTop:1}},'No cuenta en capacidad ni rotación')
           )
         ))
       ),
